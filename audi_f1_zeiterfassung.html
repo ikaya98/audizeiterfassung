@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>Audi F1 Zeiterfassung</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --red:#BB0A21;--dark:#111111;--silver:#9a9a9a;
+  --bg:#0d0d0d;--surface:#1a1a1a;--surface2:#242424;
+  --border:#2e2e2e;--text:#f0f0f0;--muted:#888;
+  --success:#4a9c4a;--info:#378ADD;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Helvetica Neue',Arial,sans-serif;font-size:14px;}
+a{color:inherit;text-decoration:none;}
+
+/* HEADER */
+.header{background:var(--dark);padding:14px 16px 10px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;}
+.rings svg{display:block;}
+.header-info{flex:1;}
+.header-title{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--text);}
+.header-sub{font-size:10px;color:var(--muted);letter-spacing:1px;margin-top:1px;}
+.sync-indicator{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);cursor:pointer;}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);}
+.sync-dot.ok{background:var(--success);}
+.sync-dot.err{background:var(--red);}
+.sync-dot.loading{background:#f0a500;animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+
+/* NAV */
+.nav{background:var(--dark);display:flex;border-bottom:2px solid var(--red);overflow-x:auto;}
+.nav::-webkit-scrollbar{display:none;}
+.nav-btn{flex:1;min-width:70px;padding:10px 8px;background:none;border:none;color:var(--muted);font-size:10px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;}
+.nav-btn.active{color:var(--text);border-bottom-color:var(--red);}
+
+/* SETUP BANNER */
+.setup-banner{background:#1a0a0a;border:1px solid var(--red);border-radius:8px;padding:14px;margin:14px;display:none;}
+.setup-banner.show{display:block;}
+.setup-banner h3{color:var(--red);font-size:12px;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;}
+.setup-banner p{font-size:12px;color:var(--muted);line-height:1.7;}
+.setup-url-row{display:flex;gap:8px;margin-top:10px;}
+.setup-url-row input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;}
+.btn-connect{background:var(--red);color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:11px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;white-space:nowrap;}
+.btn-connect:active{background:#990819;}
+
+/* STATS */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:14px;}
+.stat-card{background:var(--surface);border-radius:8px;padding:12px 8px;text-align:center;border-top:2px solid var(--red);}
+.stat-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.stat-val{font-size:20px;font-weight:500;}
+.stat-unit{font-size:9px;color:var(--muted);}
+
+/* FORM */
+.section{padding:0 14px 14px;}
+.section-title{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--red);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.form-row.full{grid-template-columns:1fr;}
+.field label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px;}
+.field input,.field select,.field textarea{width:100%;padding:9px 10px;font-size:14px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);-webkit-appearance:none;}
+.field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;}
+.field textarea{resize:vertical;min-height:64px;line-height:1.5;}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--red);}
+.toggle-row{display:flex;gap:6px;flex-wrap:wrap;}
+.tog{padding:7px 14px;border:1px solid var(--border);border-radius:20px;font-size:12px;cursor:pointer;background:var(--surface2);color:var(--muted);transition:all 0.15s;user-select:none;}
+.tog.on{background:var(--red);color:#fff;border-color:var(--red);}
+.zulage-preview{padding:9px 10px;font-size:12px;color:var(--muted);background:var(--surface2);border-radius:6px;min-height:38px;border:1px solid var(--border);}
+.btn-save{background:var(--red);color:#fff;border:none;padding:12px 28px;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;border-radius:6px;cursor:pointer;width:100%;margin-top:6px;}
+.btn-save:active{background:#990819;}
+.btn-save.saved{background:var(--success);}
+
+/* WEEK */
+.week-wrap{padding:0 14px 10px;}
+.week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.day-cell{background:var(--surface);border-radius:6px;padding:8px 4px;text-align:center;border-top:2px solid transparent;}
+.day-cell.has{border-top-color:var(--red);}
+.day-cell.today{background:var(--surface2);}
+.day-name{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.day-num{font-size:15px;font-weight:500;margin:2px 0;}
+.day-hrs{font-size:9px;color:var(--red);}
+
+/* LIST */
+.filter-row{display:flex;gap:8px;padding:0 14px 10px;flex-wrap:wrap;}
+.filter-row input,.filter-row select{padding:7px 10px;font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);}
+.filter-row select{-webkit-appearance:none;}
+.entry-list{padding:0 14px;display:flex;flex-direction:column;gap:6px;max-height:450px;overflow-y:auto;}
+.entry-item{background:var(--surface);border-radius:8px;padding:10px 12px;display:grid;grid-template-columns:80px 50px 1fr auto;gap:8px;align-items:center;border-left:3px solid var(--border);}
+.entry-item.hotel{border-left-color:var(--info);}
+.entry-item.zuhause{border-left-color:var(--success);}
+.entry-item.keine{border-left-color:#f0a500;}
+.entry-date{font-size:11px;font-weight:500;color:var(--muted);}
+.entry-hrs{color:var(--red);font-weight:500;font-size:13px;}
+.entry-info{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.entry-meta{display:flex;flex-direction:column;gap:3px;align-items:flex-end;}
+.entry-land{font-size:10px;background:var(--surface2);border:1px solid var(--border);padding:2px 7px;border-radius:10px;white-space:nowrap;}
+.entry-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:0 2px;line-height:1;}
+.entry-del:active{color:var(--red);}
+.empty{text-align:center;color:var(--muted);font-size:12px;padding:30px 14px;}
+.btn-export{background:none;border:1px solid var(--border);color:var(--muted);padding:7px 14px;font-size:10px;letter-spacing:1px;text-transform:uppercase;border-radius:6px;cursor:pointer;}
+.btn-export:active{border-color:var(--red);color:var(--red);}
+
+/* ABRECHNUNG */
+.abr-wrap{padding:0 14px;}
+.abr-block{background:var(--surface);border-radius:8px;padding:14px;margin-bottom:10px;}
+.abr-row{display:flex;justify-content:space-between;padding:5px 0;font-size:13px;border-bottom:1px solid var(--border);}
+.abr-row:last-child{border:none;}
+.abr-total{display:flex;justify-content:space-between;padding:10px 0 0;font-size:17px;font-weight:500;}
+.abr-eur{color:var(--red);}
+.abr-filter{display:flex;gap:8px;padding:0 14px 12px;flex-wrap:wrap;align-items:center;}
+.abr-filter input{padding:8px 10px;font-size:13px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);}
+.btn-calc{background:var(--red);color:#fff;border:none;padding:9px 20px;font-size:11px;letter-spacing:1px;text-transform:uppercase;border-radius:6px;cursor:pointer;}
+
+/* ZULAGEN */
+.zulagen-wrap{padding:0 14px;}
+.zulage-card{background:var(--surface);border-radius:8px;padding:14px;margin-bottom:8px;border:1px solid var(--border);}
+.zulage-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.zulage-land-name{font-size:15px;font-weight:500;}
+.zulage-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:4px 8px;border-radius:4px;}
+.zulage-del:active{color:var(--red);}
+.zulage-fields{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.zf label{font-size:9px;color:var(--muted);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px;}
+.zf input{width:100%;padding:7px 8px;font-size:13px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);}
+.zf input:focus{outline:none;border-color:var(--red);}
+.btn-add-land{background:none;border:1px dashed var(--border);color:var(--muted);padding:10px;border-radius:8px;cursor:pointer;font-size:12px;width:100%;margin-top:4px;}
+.btn-add-land:active{border-color:var(--red);color:var(--red);}
+
+/* EINSTELLUNGEN */
+.settings-wrap{padding:0 14px;}
+.settings-card{background:var(--surface);border-radius:8px;padding:14px;margin-bottom:10px;}
+.settings-title{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--red);margin-bottom:12px;}
+.settings-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.settings-row:last-child{border:none;}
+.settings-val{font-size:11px;color:var(--muted);}
+.btn-settings{background:none;border:1px solid var(--border);color:var(--muted);padding:7px 14px;font-size:11px;border-radius:6px;cursor:pointer;}
+.btn-settings.danger:active{border-color:var(--red);color:var(--red);}
+.url-input{width:100%;padding:8px 10px;font-size:11px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);margin-top:8px;word-break:break-all;}
+.url-input:focus{outline:none;border-color:var(--red);}
+.btn-red{background:var(--red);color:#fff;border:none;padding:9px 20px;font-size:11px;border-radius:6px;cursor:pointer;margin-top:8px;width:100%;letter-spacing:1px;text-transform:uppercase;}
+
+/* LOADING */
+.loading-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:999;display:none;}
+.loading-overlay.show{display:flex;}
+.loading-box{background:var(--surface);border-radius:10px;padding:24px 32px;text-align:center;}
+.loading-rings{margin-bottom:10px;}
+.loading-rings svg{animation:spin 1.5s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:12px;color:var(--muted);letter-spacing:1px;}
+
+@media(max-width:400px){
+  .stat-val{font-size:17px;}
+  .entry-item{grid-template-columns:72px 44px 1fr auto;}
+}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div class="loading-box">
+    <div class="loading-rings">
+      <svg width="50" height="16" viewBox="0 0 50 16">
+        <circle cx="6" cy="8" r="5" fill="none" stroke="#BB0A21" stroke-width="1.5"/>
+        <circle cx="17" cy="8" r="5" fill="none" stroke="#BB0A21" stroke-width="1.5"/>
+        <circle cx="28" cy="8" r="5" fill="none" stroke="#BB0A21" stroke-width="1.5"/>
+        <circle cx="39" cy="8" r="5" fill="none" stroke="#BB0A21" stroke-width="1.5"/>
+      </svg>
+    </div>
+    <div class="loading-text" id="loading-text">Synchronisieren...</div>
+  </div>
+</div>
+
+<div class="header" style="padding:10px 14px;gap:12px;">
+  <!-- Audi Ringe: viewBox zeigt nur die 4 Ringe (y 207-415), mit etwas Puffer damit nichts abgeschnitten wird -->
+  <svg viewBox="205 205 618 215" xmlns="http://www.w3.org/2000/svg" style="width:100px;height:34px;flex-shrink:0;display:block;">
+    <path fill="white" d="M717.83,208.11c-25.82,0-49.43,9.41-67.62,24.97-18.18-15.57-41.8-24.97-67.62-24.97s-49.43,9.41-67.62,24.97c-18.18-15.57-41.8-24.97-67.62-24.97s-49.43,9.41-67.62,24.97c-18.18-15.57-41.8-24.97-67.62-24.97c-57.45,0-104.02,46.57-104.02,104.02s46.57,104.02,104.02,104.02c25.81,0,49.43-9.4,67.62-24.97c18.18,15.57,41.8,24.97,67.62,24.97s49.43-9.4,67.62-24.97c18.18,15.57,41.8,24.97,67.62,24.97s49.43-9.4,67.62-24.97c18.18,15.57,41.8,24.97,67.62,24.97c57.45,0,104.02-46.57,104.02-104.02s-46.57-104.02-104.02-104.02M650.22,360.67c-3.61-5.01-6.65-10.41-9.07-16.15-4.33-10.25-6.53-21.14-6.53-32.39s2.2-22.14,6.53-32.39c2.43-5.73,5.46-11.13,9.07-16.14c3.61,5.01,6.65,10.41,9.07,16.14c4.33,10.25,6.53,21.14,6.53,32.39s-2.2,22.14-6.53,32.39c-2.43,5.74-5.46,11.13-9.07,16.15M514.99,360.67c-3.61-5.01-6.65-10.41-9.07-16.15-4.33-10.25-6.53-21.14-6.53-32.39s2.2-22.14,6.53-32.39c2.43-5.73,5.46-11.13,9.07-16.14c3.61,5.01,6.65,10.41,9.07,16.14c4.33,10.25,6.53,21.14,6.53,32.39s-2.2,22.14-6.53,32.39c-2.43,5.74-5.46,11.13-9.07,16.15M379.75,360.67c-3.61-5.01-6.65-10.41-9.07-16.15-4.33-10.25-6.53-21.14-6.53-32.39s2.2-22.14,6.53-32.39c2.43-5.73,5.46-11.13,9.07-16.14c3.61,5.01,6.65,10.41,9.07,16.14c4.33,10.25,6.53,21.14,6.53,32.39s-2.2,22.14-6.53,32.39c-2.43,5.74-5.46,11.13-9.07,16.15M312.14,395.36c-11.24,0-22.14-2.2-32.39-6.53-9.91-4.19-18.81-10.19-26.46-17.84s-13.65-16.55-17.84-26.46c-4.33-10.25-6.53-21.14-6.53-32.39s2.2-22.14,6.53-32.39c4.19-9.91,10.19-18.81,17.84-26.46s16.55-13.65,26.46-17.84c10.25-4.33,21.14-6.53,32.39-6.53s22.14,2.2,32.39,6.53c7.57,3.2,14.54,7.46,20.82,12.7c-13.79,17.65-22,39.86-22,63.99s8.22,46.34,22,63.99c-6.28,5.24-13.26,9.5-20.82,12.7c-10.25,4.33-21.14,6.53-32.39,6.53M447.37,395.36c-11.24,0-22.14-2.2-32.39-6.53-7.57-3.2-14.54-7.46-20.83-12.7c13.79-17.65,22.01-39.86,22.01-63.99s-8.22-46.34-22.01-63.99c6.28-5.24,13.26-9.5,20.83-12.7c10.25-4.33,21.14-6.53,32.39-6.53s22.14,2.2,32.39,6.53c7.57,3.2,14.54,7.46,20.83,12.7c-13.79,17.65-22.01,39.86-22.01,63.99s8.22,46.34,22.01,63.99c-6.28,5.24-13.26,9.5-20.83,12.7c-10.25,4.33-21.14,6.53-32.39,6.53M582.6,395.36c-11.24,0-22.14-2.2-32.39-6.53-7.57-3.2-14.54-7.46-20.82-12.7c13.79-17.65,22.01-39.86,22.01-63.99s-8.22-46.34-22.01-63.99c6.28-5.24,13.26-9.5,20.82-12.7c10.25-4.33,21.14-6.53,32.39-6.53s22.14,2.2,32.39,6.53c7.57,3.2,14.54,7.46,20.83,12.7c-13.79,17.65-22,39.86-22,63.99s8.22,46.34,22,63.99c-6.28,5.24-13.26,9.5-20.83,12.7c-10.25,4.33-21.14,6.53-32.39,6.53M776.68,370.98c-7.65,7.65-16.55,13.65-26.46,17.84-10.25,4.33-21.14,6.53-32.39,6.53s-22.14-2.2-32.39-6.53c-7.56-3.2-14.54-7.46-20.82-12.7c13.79-17.65,22-39.86,22-63.99s-8.22-46.34-22-63.99c6.28-5.24,13.26-9.5,20.82-12.7c10.25-4.33,21.14-6.53,32.39-6.53s22.14,2.2,32.39,6.53c9.91,4.19,18.81,10.19,26.46,17.84s13.65,16.55,17.84,26.46c4.33,10.25,6.53,21.14,6.53,32.39s-2.2,22.14-6.53,32.39c-4.19,9.91-10.19,18.81-17.84,26.46"/>
+  </svg>
+  <!-- Team Name + App Info -->
+  <div class="header-info" style="flex:1;min-width:0;">
+    <div style="font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:#fff;white-space:nowrap;">Audi Revolut F1 Team</div>
+    <div style="font-size:10px;color:#888;letter-spacing:1px;margin-top:2px;">Zeiterfassung &nbsp;·&nbsp; <span id="hdr-date"></span></div>
+  </div>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 30" style="width:64px;height:16px;flex-shrink:0;display:block;" aria-label="F1 Logo">
+    <path fill="#EE0000" d="M101.086812,30 L101.711812,30 L101.711812,27.106875 L101.722437,27.106875 L102.761812,30 L103.302437,30 L104.341812,27.106875 L104.352437,27.106875 L104.352437,30 L104.977437,30 L104.977437,26.25125 L104.063687,26.25125 L103.055562,29.18625 L103.044937,29.18625 L102.011187,26.25125 L101.086812,26.25125 L101.086812,30 Z M97.6274375,26.818125 L98.8136875,26.818125 L98.8136875,30 L99.4699375,30 L99.4699375,26.818125 L100.661812,26.818125 L100.661812,26.25125 L97.6274375,26.25125 L97.6274375,26.818125 Z M89.9999375,30 L119.999937,0 L101.943687,0 L71.9443125,30 L89.9999375,30 Z M85.6986875,13.065 L49.3818125,13.065 C38.3136875,13.065 36.3768125,13.651875 31.6361875,18.3925 C27.2024375,22.82625 20.0005625,30 20.0005625,30 L35.7324375,30 L39.4855625,26.246875 C41.9530625,23.779375 43.2255625,23.52375 48.4068125,23.52375 L75.2405625,23.52375 L85.6986875,13.065 Z M31.1518125,16.253125 C27.8774375,19.3425 20.7530625,26.263125 16.9130625,30 L-6.25e-05,30 C-6.25e-05,30 13.5524375,16.486875 21.0849375,9.0725 C28.8455625,1.685 32.7143125,0 46.9486875,0 L98.7643125,0 L87.5449375,11.21875 L48.0011875,11.21875 C37.9993125,11.21875 35.7518125,11.911875 31.1518125,16.253125 Z"/>
+  </svg>
+  <div class="sync-indicator" onclick="syncAll()" title="Sync" style="margin-left:6px;">
+    <div class="sync-dot" id="sync-dot"></div>
+    <span id="sync-label">lokal</span>
+  </div>
+</div>
+
+<nav class="nav">
+  <button class="nav-btn active" onclick="showTab('erfassen',this)">Erfassen</button>
+  <button class="nav-btn" onclick="showTab('uebersicht',this)">Übersicht</button>
+  <button class="nav-btn" onclick="showTab('abrechnung',this)">Abrechnung</button>
+  <button class="nav-btn" onclick="showTab('zulagen',this)">Zulagen</button>
+  <button class="nav-btn" onclick="showTab('urlaub',this)">Urlaub</button>
+  <button class="nav-btn" onclick="showTab('settings',this)">Setup</button>
+</nav>
+
+<!-- SETUP BANNER -->
+<div class="setup-banner" id="setup-banner">
+  <h3>⚙ Google Sheets nicht verbunden</h3>
+  <p>Trage die Web-App URL ein um deine Daten zu synchronisieren.<br>
+  Die Anleitung findest du im <strong>Setup</strong> Tab.</p>
+  <div class="setup-url-row">
+    <input type="url" id="banner-url" placeholder="https://script.google.com/macros/s/...">
+    <button class="btn-connect" onclick="connectFromBanner()">Verbinden</button>
+  </div>
+</div>
+
+<!-- TAB: ERFASSEN -->
+<div class="tab" id="tab-erfassen">
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-label">Heute</div><div class="stat-val" id="s-heute">0</div><div class="stat-unit">Std</div></div>
+    <div class="stat-card"><div class="stat-label">Woche</div><div class="stat-val" id="s-woche">0</div><div class="stat-unit">Std</div></div>
+    <div class="stat-card"><div class="stat-label">Monat</div><div class="stat-val" id="s-monat">0</div><div class="stat-unit">Std</div></div>
+    <div class="stat-card"><div class="stat-label">Gesamt</div><div class="stat-val" id="s-gesamt">0</div><div class="stat-unit">Std</div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Neuer Eintrag</div>
+
+    <div class="form-row">
+      <div class="field"><label>Datum</label><input type="date" id="f-datum"></div>
+      <div class="field"><label>Stunden</label><input type="number" id="f-stunden" min="0" max="24" step="0.5" placeholder="z.B. 8.5"></div>
+    </div>
+
+    <div class="form-row">
+      <div class="field">
+        <label>Land</label>
+        <select id="f-land" onchange="updateZulagePreview()">
+          <option value="">-- Wählen --</option>
+          <option value="AT">🇦🇹 Österreich (AT)</option>
+          <option value="DE">🇩🇪 Deutschland (DE)</option>
+          <option value="ES">🇪🇸 Spanien (ES)</option>
+          <option value="FR">🇫🇷 Frankreich (FR)</option>
+          <option value="GB">🇬🇧 England (GB)</option>
+          <option value="IT">🇮🇹 Italien (IT)</option>
+          <option value="MC">🇲🇨 Monaco (MC)</option>
+          <option value="BE">🇧🇪 Belgien (BE)</option>
+          <option value="NL">🇳🇱 Niederlande (NL)</option>
+          <option value="HU">🇭🇺 Ungarn (HU)</option>
+          <option value="AZ">🇦🇿 Aserbaidschan (AZ)</option>
+          <option value="BH">🇧🇭 Bahrain (BH)</option>
+          <option value="SA">🇸🇦 Saudi Arabien (SA)</option>
+          <option value="JP">🇯🇵 Japan (JP)</option>
+          <option value="CN">🇨🇳 China (CN)</option>
+          <option value="US">🇺🇸 USA (US)</option>
+          <option value="CA">🇨🇦 Kanada (CA)</option>
+          <option value="AU">🇦🇺 Australien (AU)</option>
+          <option value="BR">🇧🇷 Brasilien (BR)</option>
+          <option value="MX">🇲🇽 Mexiko (MX)</option>
+          <option value="AE">🇦🇪 Abu Dhabi (AE)</option>
+          <option value="QA">🇶🇦 Katar (QA)</option>
+          <option value="SG">🇸🇬 Singapur (SG)</option>
+        </select>
+      </div>
+      <div class="field"><label>Zulagen (automatisch)</label><div class="zulage-preview" id="zulage-preview">Land wählen...</div></div>
+    </div>
+
+    <div class="form-row full">
+      <div class="field"><label>Tätigkeit</label><textarea id="f-taetigkeit" placeholder="z.B. Reifenstrategie, Pitstop-Training, Teammeeting, Qualifying..."></textarea></div>
+    </div>
+
+    <div class="field" style="margin-bottom:12px;">
+      <label>Unterkunft</label>
+      <div class="toggle-row">
+        <span class="tog on" id="tog-hotel" onclick="setToggle('unterkunft','hotel')">🏨 Hotel</span>
+        <span class="tog" id="tog-zuhause" onclick="setToggle('unterkunft','zuhause')">🏠 Zuhause</span>
+        <span class="tog" id="tog-keine-u" onclick="setToggle('unterkunft','keine')">🚗 Tagesreise</span>
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:12px;">
+      <label>Verpflegung</label>
+      <div class="toggle-row">
+        <span class="tog on" id="tog-verpf-ja" onclick="setToggle('verpflegung','ja')">🍽 Erhalten</span>
+        <span class="tog" id="tog-verpf-nein" onclick="setToggle('verpflegung','nein')">❌ Nicht erhalten</span>
+      </div>
+    </div>
+
+    <div class="form-row full">
+      <div class="field"><label>Notiz (optional)</label><input type="text" id="f-notiz" placeholder="Weitere Anmerkungen..."></div>
+    </div>
+
+    <button class="btn-save" id="btn-save-main" onclick="saveEntry()">Eintrag speichern</button>
+  </div>
+</div>
+
+<!-- TAB: ÜBERSICHT -->
+<div class="tab" id="tab-uebersicht" style="display:none;">
+  <div class="week-wrap">
+    <div class="section-title" style="padding:14px 0 6px;">Aktuelle Woche</div>
+    <div class="week-grid" id="week-grid"></div>
+  </div>
+
+  <div class="filter-row" style="padding-top:12px;">
+    <input type="month" id="filter-monat" onchange="renderList()">
+    <select id="filter-land" onchange="renderList()">
+      <option value="">Alle Länder</option>
+    </select>
+    <select id="filter-u" onchange="renderList()">
+      <option value="">Alle</option>
+      <option value="hotel">Hotel</option>
+      <option value="zuhause">Zuhause</option>
+      <option value="keine">Tagesreise</option>
+    </select>
+    <button class="btn-export" onclick="exportCSV()">CSV</button>
+  </div>
+
+  <div class="entry-list" id="entry-list"></div>
+  <div style="height:20px;"></div>
+</div>
+
+<!-- TAB: ABRECHNUNG -->
+<div class="tab" id="tab-abrechnung" style="display:none;">
+  <div class="abr-filter">
+    <input type="month" id="abr-monat">
+    <button class="btn-calc" onclick="calcAbrechnung()">Berechnen</button>
+  </div>
+  <div class="abr-wrap" id="abr-result"></div>
+  <div style="height:20px;"></div>
+</div>
+
+<!-- TAB: ZULAGEN -->
+<div class="tab" id="tab-zulagen" style="display:none;">
+  <div class="zulagen-wrap">
+    <div class="section-title" style="padding:14px 0 8px;">Zulagen pro Land (€)</div>
+    <div id="zulagen-list"></div>
+    <button class="btn-add-land" onclick="addZulagenLand()">+ Land hinzufügen</button>
+    <div style="height:20px;"></div>
+  </div>
+</div>
+
+<!-- TAB: SETTINGS -->
+<div class="tab" id="tab-settings" style="display:none;">
+  <div class="settings-wrap">
+    <div class="section-title" style="padding:14px 0 8px;">Google Sheets Verbindung</div>
+
+    <div class="settings-card">
+      <div class="settings-title">Schritt-für-Schritt Anleitung</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.9;">
+        <b style="color:var(--text);">1.</b> Gehe zu <a href="https://sheets.google.com" style="color:var(--red);">sheets.google.com</a> → neue leere Tabelle erstellen<br>
+        <b style="color:var(--text);">2.</b> Menü: <b style="color:var(--text);">Erweiterungen → Apps Script</b><br>
+        <b style="color:var(--text);">3.</b> Alles löschen, dann den <b style="color:var(--text);">google_apps_script.js</b> Code einfügen<br>
+        <b style="color:var(--text);">4.</b> Auf <b style="color:var(--text);">Speichern</b> klicken (Disketten-Symbol)<br>
+        <b style="color:var(--text);">5.</b> Auf <b style="color:var(--text);">Bereitstellen → Neue Bereitstellung</b> klicken<br>
+        <b style="color:var(--text);">6.</b> Typ: <b style="color:var(--text);">Web-App</b> wählen<br>
+        <b style="color:var(--text);">7.</b> Ausführen als: <b style="color:var(--text);">Ich</b> — Zugriff: <b style="color:var(--text);">Jeder</b><br>
+        <b style="color:var(--text);">8.</b> <b style="color:var(--text);">Bereitstellen</b> klicken → URL kopieren<br>
+        <b style="color:var(--text);">9.</b> URL unten einfügen und verbinden ✓
+      </div>
+    </div>
+
+    <div class="settings-card">
+      <div class="settings-title">Web-App URL</div>
+      <input class="url-input" type="url" id="settings-url" placeholder="https://script.google.com/macros/s/DEINE_ID/exec" oninput="checkUrlInput()">
+      <button class="btn-red" id="btn-verbinden" onclick="connectFromSettings()" disabled>Verbinden & Synchronisieren</button>
+    </div>
+
+    <div class="settings-card" id="status-card" style="display:none;">
+      <div class="settings-title">Status</div>
+      <div class="settings-row"><span>Verbindung</span><span class="settings-val" id="status-conn">—</span></div>
+      <div class="settings-row"><span>Letzte Sync</span><span class="settings-val" id="status-sync">—</span></div>
+      <div class="settings-row"><span>Einträge in Cloud</span><span class="settings-val" id="status-count">—</span></div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button class="btn-settings" onclick="syncAll()">🔄 Jetzt synchronisieren</button>
+        <button class="btn-settings danger" onclick="disconnectCloud()">Trennen</button>
+      </div>
+    </div>
+
+    <div class="settings-card">
+      <div class="settings-title">App auf Startbildschirm</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.9;">
+        <b style="color:var(--text);">iPhone/iPad:</b> Safari → Teilen-Symbol → "Zum Home-Bildschirm" → Hinzufügen<br>
+        <b style="color:var(--text);">Mac:</b> Chrome/Edge → Adressleiste → ⊕ Symbol → App installieren
+      </div>
+    </div>
+
+    <div style="height:20px;"></div>
+  </div>
+</div>
+
+<!-- TAB: URLAUB -->
+<div class="tab" id="tab-urlaub" style="display:none;">
+  <div style="padding:0 14px;">
+    <div class="section-title" style="padding:14px 0 8px;">Urlaub planen</div>
+
+    <!-- Urlaub Stats -->
+    <div class="stat-grid" style="margin-bottom:14px;">
+      <div class="stat-card"><div class="stat-label">Gesamt</div><div class="stat-val" id="u-gesamt">0</div><div class="stat-unit">Tage</div></div>
+      <div class="stat-card"><div class="stat-label">Genehmigt</div><div class="stat-val" id="u-genehmigt">0</div><div class="stat-unit">Tage</div></div>
+      <div class="stat-card"><div class="stat-label">Ausstehend</div><div class="stat-val" id="u-ausstehend">0</div><div class="stat-unit">Tage</div></div>
+      <div class="stat-card"><div class="stat-label">Abgelehnt</div><div class="stat-val" id="u-abgelehnt">0</div><div class="stat-unit">Tage</div></div>
+    </div>
+
+    <!-- Neuer Urlaub Form -->
+    <div style="background:var(--surface);border-radius:8px;padding:14px;margin-bottom:14px;border:1px solid var(--border);">
+      <div class="section-title">Neuer Urlaubsantrag</div>
+      <div class="form-row">
+        <div class="field"><label>Von</label><input type="date" id="u-von"></div>
+        <div class="field"><label>Bis</label><input type="date" id="u-bis"></div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Art</label>
+          <select id="u-art">
+            <option value="urlaub">🏖 Urlaub</option>
+            <option value="krank">🤒 Krankenstand</option>
+            <option value="frei">📅 Zeitausgleich</option>
+            <option value="sonder">⭐ Sonderurlaub</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Status</label>
+          <select id="u-status">
+            <option value="ausstehend">⏳ Ausstehend</option>
+            <option value="genehmigt">✅ Genehmigt</option>
+            <option value="abgelehnt">❌ Abgelehnt</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="field"><label>Notiz (optional)</label><input type="text" id="u-notiz" placeholder="z.B. Familienurlaub, Arzttermin..."></div>
+      </div>
+      <button class="btn-save" id="btn-urlaub-save" onclick="saveUrlaub()">Urlaub eintragen</button>
+    </div>
+
+    <!-- Urlaub Liste -->
+    <div class="section-title">Meine Urlaubsanträge</div>
+    <div id="urlaub-list" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto;"></div>
+
+    <!-- Jahreskalender -->
+    <div class="section-title" style="margin-top:16px;">Jahresübersicht <span id="u-jahr-label"></span></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+      <button class="btn-export" onclick="changeJahr(-1)">‹ Zurück</button>
+      <button class="btn-export" onclick="changeJahr(1)">Weiter ›</button>
+    </div>
+    <div id="urlaub-kalender" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>
+    <div style="height:20px;"></div>
+  </div>
+</div>
+
+<script>
+// ==================== STATE ====================
+let entries = [];
+let zulagen = {};
+let togState = { unterkunft: 'hotel', verpflegung: 'ja' };
+let scriptUrl = localStorage.getItem('audi_script_url') || '';
+let urlaubEintraege = [];
+let urlaubJahr = new Date().getFullYear();
+const LS_ENTRIES = 'audi_entries';
+const LS_ZULAGEN = 'audi_zulagen';
+const LS_URLAUB = 'audi_urlaub';
+
+const defaultZulagen = {
+  AT:{tagegeld:26.40,nacht:15,verpf:0},DE:{tagegeld:28,nacht:20,verpf:0},
+  ES:{tagegeld:20,nacht:15,verpf:0},FR:{tagegeld:20,nacht:15,verpf:0},
+  GB:{tagegeld:35,nacht:25,verpf:0},IT:{tagegeld:20,nacht:15,verpf:0},
+  MC:{tagegeld:20,nacht:20,verpf:0},BE:{tagegeld:20,nacht:15,verpf:0},
+  NL:{tagegeld:20,nacht:15,verpf:0},HU:{tagegeld:20,nacht:15,verpf:0},
+  AZ:{tagegeld:35,nacht:25,verpf:0},BH:{tagegeld:40,nacht:30,verpf:0},
+  SA:{tagegeld:40,nacht:30,verpf:0},JP:{tagegeld:35,nacht:25,verpf:0},
+  CN:{tagegeld:35,nacht:25,verpf:0},US:{tagegeld:50,nacht:40,verpf:0},
+  CA:{tagegeld:40,nacht:30,verpf:0},AU:{tagegeld:35,nacht:25,verpf:0},
+  BR:{tagegeld:35,nacht:25,verpf:0},MX:{tagegeld:35,nacht:25,verpf:0},
+  AE:{tagegeld:40,nacht:30,verpf:0},QA:{tagegeld:40,nacht:30,verpf:0},
+  SG:{tagegeld:40,nacht:30,verpf:0}
+};
+
+// ==================== INIT ====================
+function init() {
+  document.getElementById('hdr-date').textContent = new Date().toLocaleDateString('de-AT',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+  document.getElementById('f-datum').value = new Date().toISOString().slice(0,10);
+  document.getElementById('filter-monat').value = new Date().toISOString().slice(0,7);
+  document.getElementById('abr-monat').value = new Date().toISOString().slice(0,7);
+
+  // Load local data
+  try { entries = JSON.parse(localStorage.getItem(LS_ENTRIES) || '[]'); } catch(e){ entries=[]; }
+  try { zulagen = JSON.parse(localStorage.getItem(LS_ZULAGEN) || 'null') || {...defaultZulagen}; } catch(e){ zulagen={...defaultZulagen}; }
+  try { urlaubEintraege = JSON.parse(localStorage.getItem(LS_URLAUB) || '[]'); } catch(e){ urlaubEintraege=[]; }
+
+  // Set default urlaub dates (today to +7)
+  const tod = new Date().toISOString().slice(0,10);
+  const nextWeek = new Date(); nextWeek.setDate(nextWeek.getDate()+6);
+  document.getElementById('u-von').value = tod;
+  document.getElementById('u-bis').value = nextWeek.toISOString().slice(0,10);
+
+  updateStats();
+  updateSyncStatus();
+  checkSetupBanner();
+
+  if (scriptUrl) {
+    syncAll(true);
+  }
+}
+
+// ==================== TABS ====================
+function showTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.style.display='none');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+name).style.display='block';
+  if(btn) btn.classList.add('active');
+  if(name==='uebersicht'){renderList();renderWeek();}
+  if(name==='abrechnung'){document.getElementById('abr-monat').value=new Date().toISOString().slice(0,7);}
+  if(name==='zulagen'){renderZulagen();}
+  if(name==='urlaub'){renderUrlaub();renderUrlaubKalender();}
+  if(name==='settings'){
+    document.getElementById('settings-url').value = scriptUrl;
+    checkUrlInput();
+    updateStatusCard();
+  }
+}
+
+// ==================== SYNC ====================
+function setSyncState(state, label) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot ' + state;
+  lbl.textContent = label;
+}
+
+function updateSyncStatus() {
+  if (!scriptUrl) { setSyncState('', 'lokal'); return; }
+  const last = localStorage.getItem('audi_last_sync');
+  if (last) {
+    const d = new Date(last);
+    setSyncState('ok', d.toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'}));
+  } else {
+    setSyncState('', 'bereit');
+  }
+}
+
+async function api(params) {
+  if (!scriptUrl) throw new Error('Keine URL');
+  const url = scriptUrl + '?' + new URLSearchParams(params).toString();
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  const data = await resp.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+async function syncAll(silent) {
+  if (!scriptUrl) return;
+  if (!silent) showLoading('Synchronisieren...');
+  setSyncState('loading', 'sync...');
+  try {
+    // Pull entries from cloud
+    const cloudEntries = await api({ action: 'getEntries' });
+    // Merge: cloud is master, add any local-only entries
+    const cloudIds = new Set(cloudEntries.map(e => String(e.id)));
+    const localOnly = entries.filter(e => !cloudIds.has(String(e.id)));
+
+    // Push local-only to cloud
+    for (const e of localOnly) {
+      await api({ action: 'addEntry', data: JSON.stringify(e) });
+    }
+
+    // Pull zulagen
+    const cloudZulagen = await api({ action: 'getZulagen' });
+    zulagen = cloudZulagen;
+    localStorage.setItem(LS_ZULAGEN, JSON.stringify(zulagen));
+
+    // Final pull
+    const finalEntries = await api({ action: 'getEntries' });
+    entries = finalEntries.map(e => ({
+      ...e,
+      stunden: parseFloat(e.stunden) || 0,
+      id: String(e.id)
+    }));
+    localStorage.setItem(LS_ENTRIES, JSON.stringify(entries));
+
+    const now = new Date().toISOString();
+    localStorage.setItem('audi_last_sync', now);
+    setSyncState('ok', new Date().toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'}));
+    updateStats();
+    updateStatusCard();
+  } catch(err) {
+    setSyncState('err', 'Fehler');
+    console.error('Sync error:', err);
+  }
+  if (!silent) hideLoading();
+}
+
+// ==================== ENTRIES ====================
+function saveEntries() { localStorage.setItem(LS_ENTRIES, JSON.stringify(entries)); }
+
+async function saveEntry() {
+  const datum = document.getElementById('f-datum').value;
+  const stunden = parseFloat(document.getElementById('f-stunden').value);
+  const land = document.getElementById('f-land').value;
+  const taetigkeit = document.getElementById('f-taetigkeit').value;
+  const notiz = document.getElementById('f-notiz').value;
+
+  if (!datum || isNaN(stunden) || stunden <= 0) {
+    alert('Bitte Datum und Stunden eingeben.');
+    return;
+  }
+
+  const entry = {
+    id: Date.now().toString(),
+    datum, stunden, land,
+    taetigkeit: taetigkeit || '',
+    unterkunft: togState.unterkunft,
+    verpflegung: togState.verpflegung,
+    notiz: notiz || ''
+  };
+
+  entries.push(entry);
+  saveEntries();
+  updateStats();
+
+  // Reset form
+  document.getElementById('f-stunden').value = '';
+  document.getElementById('f-taetigkeit').value = '';
+  document.getElementById('f-notiz').value = '';
+  document.getElementById('f-land').value = '';
+  document.getElementById('zulage-preview').textContent = 'Land wählen...';
+
+  const btn = document.getElementById('btn-save-main');
+  btn.textContent = '✓ Gespeichert';
+  btn.classList.add('saved');
+  setTimeout(() => { btn.textContent = 'Eintrag speichern'; btn.classList.remove('saved'); }, 1500);
+
+  // Async sync to cloud
+  if (scriptUrl) {
+    setSyncState('loading', 'speichern...');
+    try {
+      await api({ action: 'addEntry', data: JSON.stringify(entry) });
+      localStorage.setItem('audi_last_sync', new Date().toISOString());
+      setSyncState('ok', new Date().toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'}));
+    } catch(e) {
+      setSyncState('err', 'offline');
+    }
+  }
+}
+
+async function deleteEntry(id) {
+  if (!confirm('Eintrag löschen?')) return;
+  entries = entries.filter(e => String(e.id) !== String(id));
+  saveEntries();
+  renderList();
+  renderWeek();
+  updateStats();
+
+  if (scriptUrl) {
+    setSyncState('loading', 'löschen...');
+    try {
+      await api({ action: 'deleteEntry', id: String(id) });
+      setSyncState('ok', new Date().toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'}));
+    } catch(e) {
+      setSyncState('err', 'offline');
+    }
+  }
+}
+
+// ==================== STATS ====================
+function updateStats() {
+  const today = new Date().toISOString().slice(0,10);
+  const now = new Date();
+  const dow = now.getDay()===0?6:now.getDay()-1;
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate()-dow);
+  const weekStr = weekStart.toISOString().slice(0,10);
+  const monthStr = today.slice(0,7);
+
+  let h=0, w=0, m=0, g=0;
+  entries.forEach(e => {
+    const s = parseFloat(e.stunden)||0;
+    g += s;
+    if (e.datum===today) h+=s;
+    if (e.datum>=weekStr) w+=s;
+    if (e.datum.startsWith(monthStr)) m+=s;
+  });
+  document.getElementById('s-heute').textContent = h.toFixed(1);
+  document.getElementById('s-woche').textContent = w.toFixed(1);
+  document.getElementById('s-monat').textContent = m.toFixed(1);
+  document.getElementById('s-gesamt').textContent = g.toFixed(1);
+}
+
+// ==================== WEEK VIEW ====================
+function renderWeek() {
+  const now = new Date();
+  const dow = now.getDay()===0?6:now.getDay()-1;
+  const days = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+  const today = now.toISOString().slice(0,10);
+  const grid = document.getElementById('week-grid');
+  grid.innerHTML = '';
+  for (let i=0;i<7;i++) {
+    const d = new Date(now);
+    d.setDate(now.getDate()-dow+i);
+    const ds = d.toISOString().slice(0,10);
+    const hrs = entries.filter(e=>e.datum===ds).reduce((a,b)=>a+(parseFloat(b.stunden)||0),0);
+    const cell = document.createElement('div');
+    cell.className='day-cell'+(hrs>0?' has':'')+(ds===today?' today':'');
+    cell.innerHTML=`<div class="day-name">${days[i]}</div><div class="day-num">${d.getDate()}</div><div class="day-hrs">${hrs>0?hrs.toFixed(1)+'h':''}</div>`;
+    grid.appendChild(cell);
+  }
+}
+
+// ==================== LIST ====================
+function renderList() {
+  const monat = document.getElementById('filter-monat').value;
+  const land = document.getElementById('filter-land').value;
+  const uf = document.getElementById('filter-u').value;
+
+  // Update land dropdown
+  const sel = document.getElementById('filter-land');
+  const cur = sel.value;
+  const lands = [...new Set(entries.map(e=>e.land).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Alle Länder</option>';
+  lands.forEach(l=>{const o=document.createElement('option');o.value=l;o.textContent=l;sel.appendChild(o);});
+  sel.value = cur;
+
+  let filtered = entries.filter(e=>{
+    if(monat && !e.datum.startsWith(monat)) return false;
+    if(land && e.land!==land) return false;
+    if(uf && e.unterkunft!==uf) return false;
+    return true;
+  }).sort((a,b)=>b.datum.localeCompare(a.datum));
+
+  const list = document.getElementById('entry-list');
+  if (!filtered.length) { list.innerHTML='<div class="empty">Keine Einträge gefunden</div>'; return; }
+
+  const icon = {hotel:'🏨',zuhause:'🏠',keine:'🚗'};
+  list.innerHTML = filtered.map(e=>`
+    <div class="entry-item ${e.unterkunft||''}">
+      <span class="entry-date">${e.datum}</span>
+      <span class="entry-hrs">${parseFloat(e.stunden).toFixed(1)}h</span>
+      <span class="entry-info">${e.taetigkeit||'—'}${e.notiz?' · '+e.notiz:''}</span>
+      <div class="entry-meta">
+        <span class="entry-land">${e.land||'?'} ${icon[e.unterkunft]||''} ${e.verpflegung==='ja'?'🍽':''}</span>
+        <button class="entry-del" onclick="deleteEntry('${e.id}')">×</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ==================== ABRECHNUNG ====================
+function calcAbrechnung() {
+  const monat = document.getElementById('abr-monat').value;
+  if (!monat) return;
+  const filtered = entries.filter(e=>e.datum.startsWith(monat));
+  const result = document.getElementById('abr-result');
+
+  if (!filtered.length) {
+    result.innerHTML='<div class="empty">Keine Einträge für diesen Monat.</div>';
+    return;
+  }
+
+  let totalStd=0, totalTage=0, totalTagegeld=0, totalNacht=0, hotelN=0;
+  const byLand = {};
+
+  filtered.forEach(e => {
+    const s = parseFloat(e.stunden)||0;
+    totalStd += s;
+    totalTage++;
+    const z = zulagen[e.land]||{tagegeld:0,nacht:0};
+    const tg = e.verpflegung==='nein'?(parseFloat(z.tagegeld)||0):0;
+    const nacht = e.unterkunft==='hotel'?(parseFloat(z.nacht)||0):0;
+    totalTagegeld += tg;
+    totalNacht += nacht;
+    if(e.unterkunft==='hotel') hotelN++;
+
+    const k = e.land||'—';
+    if(!byLand[k]) byLand[k]={tage:0,stunden:0,tagegeld:0,nacht:0};
+    byLand[k].tage++;
+    byLand[k].stunden+=s;
+    byLand[k].tagegeld+=tg;
+    byLand[k].nacht+=nacht;
+  });
+
+  const total = totalTagegeld + totalNacht;
+  const landRows = Object.entries(byLand).sort().map(([l,d])=>`
+    <div class="abr-row">
+      <span>${l} · ${d.tage} Tage · ${d.stunden.toFixed(1)}h</span>
+      <span class="abr-eur">+${(d.tagegeld+d.nacht).toFixed(2)} €</span>
+    </div>`).join('');
+
+  result.innerHTML=`
+    <div class="abr-block">
+      <div class="section-title">Zusammenfassung ${monat}</div>
+      <div class="abr-row"><span>Arbeitstage</span><span>${totalTage}</span></div>
+      <div class="abr-row"><span>Gesamtstunden</span><span>${totalStd.toFixed(1)} Std</span></div>
+      <div class="abr-row"><span>Hotelübernachtungen</span><span>${hotelN}</span></div>
+    </div>
+    <div class="abr-block">
+      <div class="section-title">Zulagen nach Land</div>
+      ${landRows}
+    </div>
+    <div class="abr-block">
+      <div class="section-title">Gesamtzulagen</div>
+      <div class="abr-row"><span>Tagegeld (ohne Verpflegung)</span><span class="abr-eur">${totalTagegeld.toFixed(2)} €</span></div>
+      <div class="abr-row"><span>Nachtgeld (Hotel)</span><span class="abr-eur">${totalNacht.toFixed(2)} €</span></div>
+      <div class="abr-total"><span>Zulagen gesamt</span><span class="abr-eur">${total.toFixed(2)} €</span></div>
+    </div>`;
+}
+
+// ==================== ZULAGEN ====================
+function renderZulagen() {
+  const list = document.getElementById('zulagen-list');
+  list.innerHTML = Object.entries(zulagen).sort().map(([land,z])=>`
+    <div class="zulage-card" id="zc-${land}">
+      <div class="zulage-head">
+        <span class="zulage-land-name">${land}</span>
+        <button class="zulage-del" onclick="delZulage('${land}')">Entfernen</button>
+      </div>
+      <div class="zulage-fields">
+        <div class="zf"><label>Tagegeld €/Tag</label><input type="number" step="0.01" value="${z.tagegeld||0}" onchange="updZulage('${land}','tagegeld',this.value)"></div>
+        <div class="zf"><label>Nachtgeld €/Nacht</label><input type="number" step="0.01" value="${z.nacht||0}" onchange="updZulage('${land}','nacht',this.value)"></div>
+        <div class="zf"><label>Verpfl. Pauschale</label><input type="number" step="0.01" value="${z.verpf||0}" onchange="updZulage('${land}','verpf',this.value)"></div>
+      </div>
+    </div>`).join('');
+}
+
+function updZulage(land, field, val) {
+  if (!zulagen[land]) zulagen[land]={tagegeld:0,nacht:0,verpf:0};
+  zulagen[land][field] = parseFloat(val)||0;
+  localStorage.setItem(LS_ZULAGEN, JSON.stringify(zulagen));
+  if (scriptUrl) api({action:'saveZulagen',data:JSON.stringify(zulagen)}).catch(()=>{});
+}
+
+function delZulage(land) {
+  if (!confirm(land+' entfernen?')) return;
+  delete zulagen[land];
+  localStorage.setItem(LS_ZULAGEN, JSON.stringify(zulagen));
+  renderZulagen();
+  if (scriptUrl) api({action:'saveZulagen',data:JSON.stringify(zulagen)}).catch(()=>{});
+}
+
+function addZulagenLand() {
+  const l = prompt('Länderkürzel (z.B. JP, ZA, TR):');
+  if (!l) return;
+  const k = l.trim().toUpperCase();
+  if (!zulagen[k]) zulagen[k]={tagegeld:0,nacht:0,verpf:0};
+  localStorage.setItem(LS_ZULAGEN, JSON.stringify(zulagen));
+  renderZulagen();
+}
+
+// ==================== TOGGLES ====================
+function setToggle(group, val) {
+  togState[group] = val;
+  if (group==='unterkunft') {
+    document.getElementById('tog-hotel').classList.toggle('on',val==='hotel');
+    document.getElementById('tog-zuhause').classList.toggle('on',val==='zuhause');
+    document.getElementById('tog-keine-u').classList.toggle('on',val==='keine');
+  } else {
+    document.getElementById('tog-verpf-ja').classList.toggle('on',val==='ja');
+    document.getElementById('tog-verpf-nein').classList.toggle('on',val==='nein');
+  }
+  updateZulagePreview();
+}
+
+function updateZulagePreview() {
+  const land = document.getElementById('f-land').value;
+  const prev = document.getElementById('zulage-preview');
+  if (!land) { prev.textContent='Land wählen...'; return; }
+  const z = zulagen[land];
+  if (!z) { prev.textContent='Keine Zulagen hinterlegt'; return; }
+  const tg = togState.verpflegung==='nein' ? z.tagegeld : 0;
+  const nacht = togState.unterkunft==='hotel' ? z.nacht : 0;
+  const total = tg + nacht;
+  prev.innerHTML = `<span style="color:#BB0A21;font-weight:500">${total.toFixed(2)} €</span>&nbsp;
+    <span style="color:var(--muted);font-size:11px;">${tg>0?'Tage '+tg+'€':''}${tg>0&&nacht>0?' + ':''}${nacht>0?'Nacht '+nacht+'€':''}</span>`;
+}
+
+// ==================== CSV EXPORT ====================
+function exportCSV() {
+  const monat = document.getElementById('filter-monat').value;
+  const filtered = monat ? entries.filter(e=>e.datum.startsWith(monat)) : entries;
+  filtered.sort((a,b)=>a.datum.localeCompare(b.datum));
+  const hdr = 'Datum,Stunden,Land,Tätigkeit,Unterkunft,Verpflegung,Notiz';
+  const rows = filtered.map(e=>[e.datum,e.stunden,e.land||'',
+    (e.taetigkeit||'').replace(/,/g,';'),e.unterkunft,e.verpflegung,(e.notiz||'').replace(/,/g,';')].join(','));
+  const csv = [hdr,...rows].join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download = 'audi_f1_'+(monat||'alle')+'.csv';
+  a.click();
+}
+
+// ==================== SETUP / CONNECT ====================
+function checkSetupBanner() {
+  document.getElementById('setup-banner').classList.toggle('show', !scriptUrl);
+}
+
+function checkUrlInput() {
+  const val = document.getElementById('settings-url').value.trim();
+  document.getElementById('btn-verbinden').disabled = !val.startsWith('https://');
+}
+
+async function connectFromBanner() {
+  const url = document.getElementById('banner-url').value.trim();
+  if (!url) return;
+  scriptUrl = url;
+  localStorage.setItem('audi_script_url', url);
+  document.getElementById('setup-banner').classList.remove('show');
+  await syncAll();
+}
+
+async function connectFromSettings() {
+  const url = document.getElementById('settings-url').value.trim();
+  if (!url) return;
+  scriptUrl = url;
+  localStorage.setItem('audi_script_url', url);
+  checkSetupBanner();
+  await syncAll();
+  updateStatusCard();
+}
+
+function disconnectCloud() {
+  if (!confirm('Verbindung zu Google Sheets trennen?\n(Lokale Daten bleiben erhalten)')) return;
+  scriptUrl = '';
+  localStorage.removeItem('audi_script_url');
+  setSyncState('','lokal');
+  checkSetupBanner();
+  updateStatusCard();
+}
+
+function updateStatusCard() {
+  const card = document.getElementById('status-card');
+  if (!scriptUrl) { card.style.display='none'; return; }
+  card.style.display='block';
+  document.getElementById('status-conn').textContent = '✓ Verbunden';
+  const last = localStorage.getItem('audi_last_sync');
+  document.getElementById('status-sync').textContent = last ? new Date(last).toLocaleString('de-AT') : '—';
+  document.getElementById('status-count').textContent = entries.length;
+}
+
+// ==================== LOADING ====================
+function showLoading(txt) {
+  document.getElementById('loading-text').textContent = txt||'...';
+  document.getElementById('loading').classList.add('show');
+}
+function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+// ==================== START ====================
+init();
+</script>
+</body>
+</html>
